@@ -1,0 +1,31 @@
+# Azure Developer CLI Configuration
+# This file defines the services and configuration for deployment to Azure
+
+name: sso-auth-app
+metadata:
+  template: sso-auth-app@0.0.1-beta
+
+services:
+  backend:
+    project: ./backend
+    language: py
+    host: containerapp
+    env:
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+      AZURE_REDIRECT_URI: ${BACKEND_URI}/auth/callback
+      DATAVERSE_ENVIRONMENT_URL: ${DATAVERSE_ENVIRONMENT_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${FRONTEND_URI}
+      SESSION_COOKIE_SECURE: true
+      ENVIRONMENT: production
+      DEBUG: false
+
+  frontend:
+    project: ./frontend
+    language: js
+    host: staticwebapp
+    env:
+      VITE_API_BASE_URL: ${BACKEND_URI}
+      VITE_ENVIRONMENT: production

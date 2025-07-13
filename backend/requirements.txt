@@ -1,0 +1,31 @@
+# FastAPI with latest security features
+fastapi==0.115.14
+uvicorn[standard]==0.32.1
+
+# Authentication & Security
+msal==1.31.1
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.12
+passlib[bcrypt]==1.7.4
+
+# Azure SDK
+azure-identity==1.19.0
+azure-keyvault-secrets==4.8.0
+
+# HTTP Client
+httpx==0.28.1
+aiofiles==24.1.0
+
+# Environment & Configuration
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Logging & Monitoring
+structlog==24.4.0
+
+# Development
+pytest==8.3.4
+pytest-asyncio==0.24.0
+black==24.10.0
+flake8==7.1.1
+mypy==1.13.0
