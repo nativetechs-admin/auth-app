@@ -490,6 +490,162 @@ class DataverseService:
                         azure_user_id=azure_user_id)
             return False
 
+    async def get_user_projects(self, access_token: str, azure_user_id: str) -> Optional[list]:
+        """
+        Get projects (msdyn_project) that belong to the user's business unit.
+        
+        Args:
+            access_token: Access token with Dataverse permissions
+            azure_user_id: Azure AD object ID of the user
+            
+        Returns:
+            List of projects or None if failed
+        """
+        try:
+            headers = self._get_headers(access_token)
+            
+            # First, get the user's business unit
+            user_query = f"systemusers?$filter=azureactivedirectoryobjectid eq '{azure_user_id}'&$select=systemuserid,businessunitid,_businessunitid_value"
+            
+            async with httpx.AsyncClient() as client:
+                logger.info("Fetching user business unit", azure_user_id=azure_user_id)
+                
+                user_response = await client.get(
+                    f"{self.base_url}/{user_query}",
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                if user_response.status_code != 200:
+                    logger.warning("Failed to fetch user business unit", 
+                                 status_code=user_response.status_code,
+                                 response=user_response.text[:200])
+                    return None
+                
+                user_data = user_response.json()
+                users = user_data.get("value", [])
+                
+                if not users:
+                    logger.warning("User not found in Dataverse", azure_user_id=azure_user_id)
+                    return None
+                
+                user = users[0]
+                business_unit_id = user.get("_businessunitid_value")
+                
+                if not business_unit_id:
+                    logger.warning("User has no business unit assigned", azure_user_id=azure_user_id)
+                    return []
+                
+                # Now fetch projects for this business unit
+                # Query projects where the owning business unit matches the user's business unit
+                projects_query = (
+                    f"msdyn_projects?"
+                    f"$filter=_owningbusinessunit_value eq '{business_unit_id}'"
+                    f"&$select=msdyn_projectid,msdyn_subject,msdyn_description,createdon,modifiedon,statuscode,statecode,msdyn_scheduledstart"
+                    f"&$orderby=modifiedon desc"
+                )
+                
+                logger.info("Fetching projects for business unit", 
+                          business_unit_id=business_unit_id,
+                          azure_user_id=azure_user_id)
+                
+                projects_response = await client.get(
+                    f"{self.base_url}/{projects_query}",
+                    headers=headers,
+                    timeout=30.0
+                )
+                
+                if projects_response.status_code != 200:
+                    logger.warning("Failed to fetch projects", 
+                                 status_code=projects_response.status_code,
+                                 response=projects_response.text[:200])
+                    return None
+                
+                projects_data = projects_response.json()
+                projects = projects_data.get("value", [])
+                
+                # Format project data
+                formatted_projects = []
+                for project in projects:
+                    status_code = project.get("statuscode")
+                    formatted_project = {
+                        "id": project.get("msdyn_projectid"),
+                        "name": project.get("msdyn_subject"),
+                        "description": project.get("msdyn_description"),
+                        "created_on": project.get("createdon"),
+                        "modified_on": project.get("modifiedon"),
+                        "status_code": status_code,
+                        "state_code": project.get("statecode"),
+                        "status_name": self._get_project_status_name(status_code),
+                        "msdyn_subject": project.get("msdyn_subject"),  # Also include as separate field
+                        "msdyn_scheduledstart": project.get("msdyn_scheduledstart"),
+                        "statuscode_text": self._get_project_status_text(status_code)
+                    }
+                    formatted_projects.append(formatted_project)
+                
+                logger.info("Successfully fetched user projects", 
+                          project_count=len(formatted_projects),
+                          azure_user_id=azure_user_id)
+                
+                return formatted_projects
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Failed to fetch user projects", error=str(e), azure_user_id=azure_user_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch projects from Dataverse"
+            )
+    
+    def _get_project_status_name(self, status_code: Optional[int]) -> str:
+        """
+        Convert project status code to human-readable name.
+        
+        Args:
+            status_code: Project status code from Dataverse
+            
+        Returns:
+            Human-readable status name
+        """
+        status_mapping = {
+            1: "Active",
+            2: "Inactive", 
+            192350000: "In Progress",
+            192350001: "On Hold",
+            192350002: "Completed",
+            192350003: "Cancelled"
+        }
+        
+        if status_code is None:
+            return "Unknown"
+        
+        return status_mapping.get(status_code, f"Unknown ({status_code})")
+
+    def _get_project_status_text(self, status_code: Optional[int]) -> str:
+        """
+        Convert project status code to descriptive text value.
+        
+        Args:
+            status_code: Project status code from Dataverse
+            
+        Returns:
+            Descriptive status text
+        """
+        status_text_mapping = {
+            1: "Active Project",
+            2: "Inactive Project", 
+            192350000: "In Progress - Work Ongoing",
+            192350001: "On Hold - Temporarily Paused",
+            192350002: "Completed - Successfully Finished",
+            192350003: "Cancelled - Project Terminated"
+        }
+        
+        if status_code is None:
+            return "Status Unknown"
+        
+        return status_text_mapping.get(status_code, f"Custom Status ({status_code})")
+
     def _format_user_data(self, dataverse_user: Dict[str, Any]) -> Dict[str, Any]:
         """
         Format Dataverse user data into our application's user format.

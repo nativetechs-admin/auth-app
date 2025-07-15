@@ -4,40 +4,16 @@
 	 * Protected dashboard showing user information and application features
 	 */
 
-	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import ProtectedRoute from '../../lib/components/ProtectedRoute.svelte';
 	import { currentUser } from '../../lib/auth/authStore';
-	import type { User } from '../../lib/auth/types';
-
-	// Local state
-	let loading = false; // No API call needed, user data is in store
-	let error = '';
-
-	// onMount is not needed since we're using the store data
-	// The user data is already loaded during authentication
 
 	// Reactive statements
 	$: user = $currentUser;
-	$: profileData = $currentUser; // Use the same data from the store
 
-	// Helper functions
-	function formatDate(dateString: string | undefined): string {
-		if (!dateString) return 'Not available';
-		return new Intl.DateTimeFormat('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		}).format(new Date(dateString));
-	}
-
-	function getStatusBadge(isActive: boolean): string {
-		return 'ACTIVE'; // Always show as active for authenticated users
-	}
-
-	function getStatusColor(isActive: boolean): string {
-		return 'status-active'; // Always show active color for authenticated users
+	// Navigation functions
+	function goToProjects() {
+		goto('/projects');
 	}
 </script>
 
@@ -58,9 +34,7 @@
 				<div class="card profile-card">
 					<div class="card-header">
 						<h2>Profile Information</h2>
-						<span class="status-badge {getStatusColor(user.is_active)}">
-							{getStatusBadge(user.is_active)}
-						</span>
+						<span class="status-badge status-active">ACTIVE</span>
 					</div>
 					<div class="card-content">
 						<div class="profile-section">
@@ -95,19 +69,15 @@
 					<div class="card-content">
 						<div class="detail-grid">
 							<div class="detail-item">
-								<label>Email:</label>
+								<span class="detail-label">Email:</span>
 								<span>{user.email}</span>
 							</div>
 							<div class="detail-item">
-								<label>Display Name:</label>
+								<span class="detail-label">Display Name:</span>
 								<span>{user.name}</span>
 							</div>
 							<div class="detail-item">
-								<label>Previous Login:</label>
-								<span>Not available</span>
-							</div>
-							<div class="detail-item">
-								<label>Account Status:</label>
+								<span class="detail-label">Account Status:</span>
 								<span class="status-text active">Active</span>
 							</div>
 						</div>
@@ -129,7 +99,7 @@
 								</div>
 							</div>
 							<div class="session-item">
-								<span class="session-icon">�</span>
+								<span class="session-icon">📝</span>
 								<div>
 									<h4>Session Tracking</h4>
 									<p>Activity logged in Microsoft Dataverse</p>
@@ -153,27 +123,17 @@
 					</div>
 					<div class="card-content">
 						<div class="action-buttons">
-							<button class="action-btn primary" on:click={() => console.log('My Projects clicked - navigation not implemented yet')}>
-								<span class="action-icon">�</span>
-								My Projects
+							<button 
+								class="action-btn primary" 
+								on:click={goToProjects}
+							>
+								<span class="action-icon">📋</span>
+								View My Projects
 							</button>
 						</div>
 					</div>
 				</div>
 			</div>
-
-			{#if loading}
-				<div class="loading-overlay">
-					<div class="spinner"></div>
-					<p>Loading additional profile data...</p>
-				</div>
-			{/if}
-
-			{#if error}
-				<div class="error-notice">
-					<p>{error}</p>
-				</div>
-			{/if}
 		{/if}
 	</div>
 </ProtectedRoute>
@@ -182,6 +142,7 @@
 	.dashboard-container {
 		max-width: 1200px;
 		margin: 0 auto;
+		padding: 2rem;
 	}
 
 	.dashboard-header {
@@ -248,52 +209,58 @@
 		color: #065f46;
 	}
 
-	.status-inactive {
-		background-color: #fee2e2;
-		color: #991b1b;
-	}
-
 	.profile-section {
 		display: flex;
 		gap: 1.5rem;
-		align-items: center;
+		align-items: flex-start;
 	}
 
-	.profile-avatar img,
+	.profile-avatar {
+		flex-shrink: 0;
+	}
+
+	.profile-avatar img {
+		width: 4rem;
+		height: 4rem;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
 	.avatar-placeholder {
 		width: 4rem;
 		height: 4rem;
 		border-radius: 50%;
-	}
-
-	.avatar-placeholder {
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background-color: #0066cc;
 		color: white;
 		font-weight: 600;
 		font-size: 1.25rem;
 	}
 
 	.profile-details h3 {
-		font-size: 1.5rem;
+		font-size: 1.375rem;
 		font-weight: 600;
 		color: #111827;
 		margin: 0 0 0.5rem 0;
 	}
 
-	.email {
+	.profile-details .email {
 		color: #6b7280;
-		font-size: 1rem;
 		margin: 0 0 0.25rem 0;
 	}
 
-	.job-title,
-	.department {
-		color: #374151;
+	.profile-details .job-title {
+		color: #059669;
+		font-weight: 500;
+		margin: 0 0 0.25rem 0;
+	}
+
+	.profile-details .department {
+		color: #7c3aed;
 		font-size: 0.875rem;
-		margin: 0.125rem 0;
+		margin: 0;
 	}
 
 	.detail-grid {
@@ -313,39 +280,30 @@
 		border-bottom: none;
 	}
 
-	.detail-item label {
+	.detail-item span.detail-label {
 		font-weight: 500;
 		color: #374151;
 	}
 
 	.detail-item span {
 		color: #6b7280;
-		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-		font-size: 0.875rem;
-		text-align: right;
-		max-width: 60%;
-		word-break: break-all;
-	}
-
-	.status-text {
-		font-family: inherit !important;
-		font-weight: 600 !important;
 	}
 
 	.status-text.active {
-		color: #10b981 !important;
+		color: #059669;
+		font-weight: 500;
 	}
 
 	.session-info {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.5rem;
 	}
 
 	.session-item {
 		display: flex;
+		align-items: flex-start;
 		gap: 1rem;
-		align-items: center;
 	}
 
 	.session-icon {
@@ -362,29 +320,29 @@
 
 	.session-item p {
 		color: #6b7280;
-		font-size: 0.875rem;
 		margin: 0;
+		font-size: 0.875rem;
 	}
 
 	.action-buttons {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		display: flex;
 		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
 	.action-btn {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 1rem;
+		padding: 0.75rem 1.5rem;
 		border: none;
 		border-radius: 0.5rem;
+		font-size: 1rem;
+		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s ease-in-out;
+		text-decoration: none;
 		font-family: inherit;
-		font-size: 0.875rem;
-		font-weight: 500;
 	}
 
 	.action-btn.primary {
@@ -392,66 +350,30 @@
 		color: white;
 	}
 
-	.action-btn.primary:hover {
+	.action-btn.primary:hover:not(:disabled) {
 		background-color: #0052a3;
+		transform: translateY(-1px);
 	}
 
-	.action-btn.secondary {
-		background-color: #f3f4f6;
-		color: #374151;
-	}
-
-	.action-btn.secondary:hover {
-		background-color: #e5e7eb;
+	.action-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		transform: none;
 	}
 
 	.action-icon {
-		font-size: 1.25rem;
-	}
-
-	.loading-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		color: white;
-	}
-
-	.spinner {
-		width: 2rem;
-		height: 2rem;
-		border: 2px solid rgba(255, 255, 255, 0.3);
-		border-top: 2px solid white;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 1rem;
-	}
-
-	@keyframes spin {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
-	}
-
-	.error-notice {
-		background-color: #fef2f2;
-		border: 1px solid #fecaca;
-		border-radius: 0.5rem;
-		padding: 1rem;
-		margin-top: 2rem;
-		color: #dc2626;
+		font-size: 1.125rem;
 	}
 
 	/* Responsive design */
 	@media (max-width: 768px) {
+		.dashboard-container {
+			padding: 1rem;
+		}
+
 		.dashboard-grid {
 			grid-template-columns: 1fr;
+			gap: 1.5rem;
 		}
 
 		.profile-section {
@@ -459,19 +381,8 @@
 			text-align: center;
 		}
 
-		.detail-item {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 0.25rem;
-		}
-
-		.detail-item span {
-			max-width: 100%;
-			text-align: left;
-		}
-
 		.action-buttons {
-			grid-template-columns: repeat(2, 1fr);
+			justify-content: center;
 		}
 	}
 </style>
