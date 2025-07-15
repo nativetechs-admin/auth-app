@@ -774,6 +774,64 @@ async def get_user_sessions(request: Request):
         )
 
 
+@router.get("/projects")
+async def get_user_projects(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Get projects from Dataverse that belong to the user's business unit.
+    """
+    try:
+        # Get Azure user ID from the current user data
+        azure_user_id = current_user.get("id") or current_user.get("azure_user_id")
+        if not azure_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User ID not found in token"
+            )
+        
+        logger.info("Fetching user projects", azure_user_id=azure_user_id)
+        
+        # Get Dataverse access token using client credentials
+        client_credentials_token = await _get_dataverse_token()
+        if not client_credentials_token:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to obtain Dataverse access token"
+            )
+        
+        # Get Dataverse service
+        dataverse_service = get_dataverse_service(settings.dataverse_environment_url)
+        
+        # Fetch projects for the user
+        projects = await dataverse_service.get_user_projects(
+            access_token=client_credentials_token,
+            azure_user_id=azure_user_id
+        )
+        
+        if projects is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch projects from Dataverse"
+            )
+        
+        logger.info("Successfully fetched user projects", 
+                   project_count=len(projects),
+                   azure_user_id=azure_user_id)
+        
+        return {
+            "projects": projects,
+            "count": len(projects)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch user projects", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error while fetching projects"
+        )
+
+
 async def _exchange_code_for_tokens(code: str, code_verifier: str) -> Dict[str, Any]:
     """Exchange authorization code for access token using PKCE."""
     token_data = {
